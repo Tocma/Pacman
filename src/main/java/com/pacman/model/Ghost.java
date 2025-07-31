@@ -9,58 +9,58 @@ import java.util.Random;
 import com.pacman.game.Direction;
 
 /**
- * ゴーストの基底クラス（位置補正機能付き）
- * 全てのゴーストに共通する機能と状態を管理
- * グリッド中央への位置調整機能を強化
+ * ゴーストの基底クラス（滑らかな移動制御付き）
+ * 位置補正の競合を防止し、安定した移動を実現
  */
 public abstract class Ghost {
     // ゴーストの状態
     public enum GhostState {
-        SCATTER, // 散開モード（各ゴーストが特定のコーナーを目指す）
-        CHASE, // 追跡モード（パックマンを追いかける）
-        FRIGHTENED, // 怯えモード（パワーペレット効果中）
-        EATEN, // 食べられた状態（目玉だけでゴーストハウスに戻る）
-        IN_HOUSE, // ゴーストハウス内
-        EXITING_HOUSE // ゴーストハウスから出る途中
+        SCATTER, CHASE, FRIGHTENED, EATEN, IN_HOUSE, EXITING_HOUSE
     }
 
     // 位置情報
     public double x;
     public double y;
-    protected Point homePosition; // ゴーストハウス内の初期位置
+    protected Point homePosition;
 
     // 移動関連
     public Direction currentDirection;
     public double speed;
-    protected Point targetTile; // 目標とするタイル座標
+    protected Point targetTile;
 
     // 状態管理
     public GhostState state;
     public int stateTimer;
     protected int frightenedTimer;
-    protected int dotCounter; // ゴーストハウスから出るタイミング制御用
+    protected int dotCounter;
 
     // 外観
     protected Color normalColor;
     protected String name;
 
     // 定数
-    protected static final double NORMAL_SPEED = 0.125; // より正確な分数に調整
+    protected static final double NORMAL_SPEED = 0.125;
     protected static final double FRIGHTENED_SPEED = 0.0625;
     protected static final double EATEN_SPEED = 0.25;
-    protected static final int FRIGHTENED_DURATION = 400; // フレーム数
+    protected static final int FRIGHTENED_DURATION = 400;
 
-    // 位置補正用定数
-    private static final double POSITION_TOLERANCE = 0.1; // 位置補正の許容誤差
-    private static final double GRID_CENTER_THRESHOLD = 0.15; // グリッド中央判定の閾値
+    // 改善された位置補正用定数
+    private static final double GRID_ALIGNMENT_THRESHOLD = 0.125; // グリッド整列判定の閾値
+    private static final double INTERSECTION_THRESHOLD = 0.1; // 交差点判定の閾値
+    private static final double CORRECTION_STRENGTH = 0.05; // 補正強度を弱める
 
     // ランダム要素用
     protected Random random = new Random();
 
-    // 移動制御用
+    // 移動制御用（改善）
     private boolean needsDirectionChange = false;
     private int stuckCounter = 0;
     private static final int MAX_STUCK_FRAMES = 60;
+
+    // 位置補正制御用
+    private boolean isChangingDirection = false;
+    private int directionChangeTimer = 0;
+    private static final int DIRECTION_CHANGE_FREEZE_TIME = 5;
 
     /**
      * コンストラクタ
@@ -83,13 +83,9 @@ public abstract class Ghost {
      * ゴーストの更新処理
      */
     public void update(Maze maze, Pacman pacman, List<Ghost> otherGhosts) {
-        // 状態タイマーの更新
         updateTimers();
-
-        // 動けない状態のチェック
         checkIfStuck(maze);
 
-        // 状態に応じた処理
         switch (state) {
             case IN_HOUSE:
                 updateInHouse();
@@ -105,36 +101,47 @@ public abstract class Ghost {
                 break;
         }
 
-        // 位置の正規化（重要な追加機能）
-        normalizePosition();
+        // 方向変更中でない場合のみ位置補正を実行
+        if (!isChangingDirection) {
+            performGentleAlignment();
+        }
+
+        // 方向変更タイマーの更新
+        if (directionChangeTimer > 0) {
+            directionChangeTimer--;
+            if (directionChangeTimer == 0) {
+                isChangingDirection = false;
+            }
+        }
     }
 
     /**
-     * 位置をグリッドに正規化する
-     * ゴーストが道の中央を移動するように調整
+     * 穏やかな位置調整（競合を防ぐため）
      */
-    private void normalizePosition() {
-        // 水平移動時は垂直位置を中央に調整
+    private void performGentleAlignment() {
+        // 水平移動時の垂直位置調整
         if (currentDirection == Direction.LEFT || currentDirection == Direction.RIGHT) {
             double targetY = Math.round(y);
-            if (Math.abs(y - targetY) < POSITION_TOLERANCE) {
-                y = targetY;
-            } else {
-                // 徐々に中央に戻す
-                double diff = targetY - y;
-                y += diff * 0.1; // 緩やかな補正
+            double diff = Math.abs(y - targetY);
+
+            if (diff > GRID_ALIGNMENT_THRESHOLD) {
+                double correction = Math.signum(targetY - y) * CORRECTION_STRENGTH;
+                y += correction;
+            } else if (diff < 0.01) {
+                y = targetY; // 十分近い場合は正確に設定
             }
         }
 
-        // 垂直移動時は水平位置を中央に調整
+        // 垂直移動時の水平位置調整
         if (currentDirection == Direction.UP || currentDirection == Direction.DOWN) {
             double targetX = Math.round(x);
-            if (Math.abs(x - targetX) < POSITION_TOLERANCE) {
-                x = targetX;
-            } else {
-                // 徐々に中央に戻す
-                double diff = targetX - x;
-                x += diff * 0.1; // 緩やかな補正
+            double diff = Math.abs(x - targetX);
+
+            if (diff > GRID_ALIGNMENT_THRESHOLD) {
+                double correction = Math.signum(targetX - x) * CORRECTION_STRENGTH;
+                x += correction;
+            } else if (diff < 0.01) {
+                x = targetX; // 十分近い場合は正確に設定
             }
         }
     }
@@ -153,21 +160,20 @@ public abstract class Ghost {
             }
         }
 
-        // チェイス/スキャッターモードの切り替え（オリジナルのタイミングを模倣）
+        // チェイス/スキャッターモードの切り替え
         if (state == GhostState.CHASE || state == GhostState.SCATTER) {
-            // 簡略化されたモード切り替えパターン
             int cycle = stateTimer % 2000;
-            if (cycle < 420) { // 7秒間 SCATTER
+            if (cycle < 420) {
                 if (state != GhostState.SCATTER) {
                     state = GhostState.SCATTER;
                     needsDirectionChange = true;
                 }
-            } else if (cycle < 1620) { // 20秒間 CHASE
+            } else if (cycle < 1620) {
                 if (state != GhostState.CHASE) {
                     state = GhostState.CHASE;
                     needsDirectionChange = true;
                 }
-            } else { // 残り SCATTER
+            } else {
                 if (state != GhostState.SCATTER) {
                     state = GhostState.SCATTER;
                     needsDirectionChange = true;
@@ -177,17 +183,15 @@ public abstract class Ghost {
     }
 
     /**
-     * 動けない状態のチェックと修正
+     * 動作停止状態のチェック
      */
     private void checkIfStuck(Maze maze) {
-        // 現在位置から移動可能かチェック
         double nextX = x + currentDirection.getDx() * speed;
         double nextY = y + currentDirection.getDy() * speed;
 
         if (!canMoveTo(maze, nextX, nextY)) {
             stuckCounter++;
             if (stuckCounter > MAX_STUCK_FRAMES) {
-                // 強制的に新しい方向を選択
                 forceDirectionChange(maze);
                 stuckCounter = 0;
             }
@@ -204,16 +208,21 @@ public abstract class Ghost {
         if (!validDirections.isEmpty()) {
             currentDirection = validDirections.get(random.nextInt(validDirections.size()));
             needsDirectionChange = false;
-            snapToGrid(); // 方向変更時に位置をグリッドに合わせる
+            executeDirectionChange();
         }
     }
 
     /**
-     * 位置をグリッドにスナップする
+     * 方向変更の実行
      */
-    private void snapToGrid() {
+    private void executeDirectionChange() {
+        // 方向変更時に位置をグリッドに調整
         x = Math.round(x);
         y = Math.round(y);
+
+        // 方向変更中フラグを設定
+        isChangingDirection = true;
+        directionChangeTimer = DIRECTION_CHANGE_FREEZE_TIME;
     }
 
     /**
@@ -238,46 +247,40 @@ public abstract class Ghost {
      * ゴーストハウス内での動作
      */
     private void updateInHouse() {
-        // 上下に軽く揺れる動作
         y += Math.sin(stateTimer * 0.1) * 0.02;
 
-        // 出るタイミングをチェック
         if (shouldExitHouse()) {
             state = GhostState.EXITING_HOUSE;
             currentDirection = Direction.UP;
-            snapToGrid(); // 出る時に位置を正規化
+            x = Math.round(x);
+            y = Math.round(y);
         }
     }
 
     /**
-     * ゴーストハウスから出る条件（サブクラスでオーバーライド可能）
+     * ゴーストハウスから出る条件
      */
     protected boolean shouldExitHouse() {
-        // デフォルトは一定時間経過後
-        return stateTimer > 60; // 約1秒後
+        return stateTimer > 60;
     }
 
     /**
      * ゴーストハウスから出る処理
      */
     private void updateExitingHouse(Maze maze) {
-        // ゴーストハウスの出口（中央上部）へ移動
         double targetX = 14;
-        double targetY = 11; // より安全な位置
+        double targetY = 11;
 
         double dx = targetX - x;
         double dy = targetY - y;
         double distance = Math.sqrt(dx * dx + dy * dy);
 
         if (distance < 0.5) {
-            // 出口に到達
             x = targetX;
             y = targetY;
             state = GhostState.SCATTER;
             currentDirection = Direction.LEFT;
-            snapToGrid(); // 出口到達時に位置を正規化
         } else {
-            // 出口に向かって移動
             x += (dx / distance) * speed;
             y += (dy / distance) * speed;
         }
@@ -287,28 +290,25 @@ public abstract class Ghost {
      * 通常の移動処理
      */
     private void updateMovement(Maze maze, Pacman pacman) {
-        // 目標タイルの設定
         updateTargetTile(maze, pacman);
 
-        // 交差点での方向決定（グリッド中央判定を改善）
-        if (isAtIntersection(maze) || needsDirectionChange) {
+        // 交差点での方向決定（改善された判定）
+        if (isAtSmoothIntersection(maze) || needsDirectionChange) {
             Direction newDirection = chooseDirection(maze);
             if (newDirection != Direction.NONE && newDirection != currentDirection) {
                 currentDirection = newDirection;
                 needsDirectionChange = false;
-                snapToGrid(); // 方向変更時に位置をグリッドに合わせる
+                executeDirectionChange();
             }
         }
 
-        // 実際の移動
+        // 移動実行
         move(maze);
-
-        // トンネル処理
         handleTunnel(maze);
     }
 
     /**
-     * 目標タイルの更新（状態に応じて）
+     * 目標タイルの更新
      */
     private void updateTargetTile(Maze maze, Pacman pacman) {
         switch (state) {
@@ -319,37 +319,35 @@ public abstract class Ghost {
                 targetTile = getChaseTarget(pacman);
                 break;
             case FRIGHTENED:
-                // ランダムな方向
                 targetTile = null;
                 break;
             case EATEN:
-                // ゴーストハウスの入口を目指す
                 targetTile = new Point(14, 14);
                 break;
         }
     }
 
     /**
-     * 散開モードの目標位置（サブクラスで実装）
+     * 散開モードの目標位置
      */
     protected abstract Point getScatterTarget();
 
     /**
-     * 追跡モードの目標位置（サブクラスで実装）
+     * 追跡モードの目標位置
      */
     protected abstract Point getChaseTarget(Pacman pacman);
 
     /**
-     * 交差点かどうかの判定（グリッド中央判定を改善）
+     * 滑らかな交差点判定
      */
-    private boolean isAtIntersection(Maze maze) {
-        // グリッドの中央に近い場合に判定
-        if (Math.abs(x - Math.round(x)) < GRID_CENTER_THRESHOLD &&
-                Math.abs(y - Math.round(y)) < GRID_CENTER_THRESHOLD) {
+    private boolean isAtSmoothIntersection(Maze maze) {
+        // より厳格な交差点判定
+        if (Math.abs(x - Math.round(x)) < INTERSECTION_THRESHOLD &&
+                Math.abs(y - Math.round(y)) < INTERSECTION_THRESHOLD) {
+
             int gridX = (int) Math.round(x);
             int gridY = (int) Math.round(y);
 
-            // 可能な方向の数をカウント
             int possibleDirections = 0;
             for (Direction dir : Direction.values()) {
                 if (dir != Direction.NONE && dir != currentDirection.opposite()) {
@@ -364,7 +362,7 @@ public abstract class Ghost {
     }
 
     /**
-     * 次の方向を選択
+     * 方向選択
      */
     private Direction chooseDirection(Maze maze) {
         int gridX = (int) Math.round(x);
@@ -372,7 +370,6 @@ public abstract class Ghost {
 
         List<Direction> possibleDirections = new ArrayList<>();
 
-        // 可能な方向をリストアップ（後退は禁止、ただし行き詰まりの場合は例外）
         for (Direction dir : Direction.values()) {
             if (dir != Direction.NONE) {
                 if (maze.isGhostWalkable(gridX + dir.getDx(), gridY + dir.getDy())) {
@@ -384,20 +381,17 @@ public abstract class Ghost {
         }
 
         if (possibleDirections.isEmpty()) {
-            return currentDirection.opposite(); // 行き止まりの場合は反転
+            return currentDirection.opposite();
         }
 
-        // 後退方向を除去（他に選択肢がある場合）
         if (possibleDirections.size() > 1) {
             possibleDirections.remove(currentDirection.opposite());
         }
 
-        // 怯えモードの場合はランダム
         if (state == GhostState.FRIGHTENED) {
             return possibleDirections.get(random.nextInt(possibleDirections.size()));
         }
 
-        // 目標に最も近い方向を選択
         if (targetTile != null) {
             Direction bestDirection = possibleDirections.get(0);
             double minDistance = Double.MAX_VALUE;
@@ -420,7 +414,7 @@ public abstract class Ghost {
     }
 
     /**
-     * 指定位置に移動可能かチェック
+     * 移動可能性チェック
      */
     private boolean canMoveTo(Maze maze, double nextX, double nextY) {
         int gridX = (int) Math.round(nextX);
@@ -429,18 +423,16 @@ public abstract class Ghost {
     }
 
     /**
-     * 実際の移動処理（位置補正機能付き）
+     * 移動処理
      */
     private void move(Maze maze) {
         double nextX = x + currentDirection.getDx() * speed;
         double nextY = y + currentDirection.getDy() * speed;
 
-        // 移動可能かチェック
         if (canMoveTo(maze, nextX, nextY)) {
             x = nextX;
             y = nextY;
         } else {
-            // 移動できない場合は強制的に方向を変更
             needsDirectionChange = true;
         }
     }
@@ -455,8 +447,6 @@ public abstract class Ghost {
             } else if (x >= Maze.WIDTH) {
                 x = 0;
             }
-            // トンネル通過後も位置を正規化
-            snapToGrid();
         }
     }
 
@@ -468,10 +458,9 @@ public abstract class Ghost {
             state = GhostState.FRIGHTENED;
             frightenedTimer = FRIGHTENED_DURATION;
             speed = FRIGHTENED_SPEED;
-            // 方向反転
             currentDirection = currentDirection.opposite();
             needsDirectionChange = true;
-            snapToGrid(); // 状態変更時に位置を正規化
+            executeDirectionChange();
         }
     }
 
@@ -481,7 +470,7 @@ public abstract class Ghost {
     public void setEaten() {
         state = GhostState.EATEN;
         speed = EATEN_SPEED;
-        snapToGrid(); // 食べられた時に位置を正規化
+        executeDirectionChange();
     }
 
     /**
@@ -490,13 +479,12 @@ public abstract class Ghost {
     public Color getCurrentColor() {
         switch (state) {
             case FRIGHTENED:
-                // 青と白の点滅（残り時間が少ない時）
                 if (frightenedTimer < 100 && (frightenedTimer / 10) % 2 == 0) {
                     return Color.WHITE;
                 }
                 return Color.BLUE;
             case EATEN:
-                return Color.GRAY; // 目玉だけの状態
+                return Color.GRAY;
             default:
                 return normalColor;
         }
@@ -519,16 +507,10 @@ public abstract class Ghost {
         return name;
     }
 
-    /**
-     * グリッド座標を取得
-     */
     public Point getGridPosition() {
         return new Point((int) Math.round(x), (int) Math.round(y));
     }
 
-    /**
-     * ペレットカウンターを増加（ゴーストハウスからの出現制御用）
-     */
     public void incrementDotCounter() {
         dotCounter++;
     }
