@@ -1,9 +1,9 @@
-package main.java.com.pacman.ui;
+package com.pacman.ui;
 
-import main.java.com.pacman.game.*;
-import main.java.com.pacman.model.*;
-import main.java.com.pacman.effects.EffectManager;
-import main.java.com.pacman.util.GameSettings;
+import com.pacman.game.*;
+import com.pacman.model.*;
+import com.pacman.effects.EffectManager;
+import com.pacman.util.GameSettings;
 import javax.swing.*;
 import java.awt.*;
 import java.awt.event.KeyAdapter;

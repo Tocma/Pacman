@@ -1,7 +1,7 @@
-package main.java.com.pacman.ui.dialogs;
+package com.pacman.ui.dialogs;
 
-import main.java.com.pacman.util.HighScoreManager;
-import main.java.com.pacman.util.GameSettings;
+import com.pacman.util.HighScoreManager;
+import com.pacman.util.GameSettings;
 import javax.swing.*;
 import javax.swing.table.*;
 import java.awt.*;

@@ -1,4 +1,4 @@
-package main.java.com.pacman.game;
+package com.pacman.game;
 
 /**
  * ゲームの状態を表す列挙型

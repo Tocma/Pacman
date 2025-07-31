@@ -1,6 +1,6 @@
-package main.java.com.pacman.model;
+package com.pacman.model;
 
-import main.java.com.pacman.game.Direction;
+import com.pacman.game.Direction;
 import java.awt.Color;
 import java.awt.Point;
 

@@ -1,8 +1,8 @@
-package main.java.com.pacman.ui;
+package com.pacman.ui;
 
-import main.java.com.pacman.ui.dialogs.*;
-import main.java.com.pacman.util.GameSettings;
-import main.java.com.pacman.util.GameStatistics;
+import com.pacman.ui.dialogs.*;
+import com.pacman.util.GameSettings;
+import com.pacman.util.GameStatistics;
 import javax.swing.*;
 import java.awt.*;
 import java.awt.event.*;

@@ -1,11 +1,11 @@
-package main.java.com.pacman.model;
+package com.pacman.model;
 
-import main.java.com.pacman.model.*;
-import main.java.com.pacman.sound.SoundManager;
-import main.java.com.pacman.effects.EffectManager;
-import main.java.com.pacman.game.Direction;
-import main.java.com.pacman.game.GameState;
-import main.java.com.pacman.util.*;
+import com.pacman.model.*;
+import com.pacman.sound.SoundManager;
+import com.pacman.effects.EffectManager;
+import com.pacman.game.Direction;
+import com.pacman.game.GameState;
+import com.pacman.util.*;
 import javax.swing.Timer;
 import java.awt.Point;
 import java.awt.event.ActionEvent;

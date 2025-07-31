@@ -1,4 +1,4 @@
-package main.java.com.pacman.effects;
+package com.pacman.effects;
 
 import java.awt.*;
 import java.util.*;

@@ -1,6 +1,6 @@
-package main.java.com.pacman;
+package com.pacman;
 
-import main.java.com.pacman.ui.GameWindow;
+import com.pacman.ui.GameWindow;
 import javax.swing.*;
 
 /**

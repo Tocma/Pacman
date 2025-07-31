@@ -1,4 +1,4 @@
-package main.java.com.pacman.game;
+package com.pacman.game;
 
 /**
  * ゲーム内の移動方向を表す列挙型

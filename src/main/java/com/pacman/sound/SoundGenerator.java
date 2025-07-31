@@ -1,4 +1,4 @@
-package main.java.com.pacman.sound;
+package com.pacman.sound;
 
 import javax.sound.sampled.*;
 import java.io.*;

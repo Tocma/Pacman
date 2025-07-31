@@ -1,4 +1,4 @@
-package main.java.com.pacman.model;
+package com.pacman.model;
 
 import java.awt.*;
 

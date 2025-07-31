@@ -1,6 +1,6 @@
-package main.java.com.pacman.ui.dialogs;
+package com.pacman.ui.dialogs;
 
-import main.java.com.pacman.util.GameStatistics;
+import com.pacman.util.GameStatistics;
 import javax.swing.*;
 import javax.swing.border.*;
 import java.awt.*;

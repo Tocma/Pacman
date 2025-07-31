@@ -1,4 +1,4 @@
-package main.java.com.pacman.util;
+package com.pacman.util;
 
 import java.io.*;
 import java.util.*;
