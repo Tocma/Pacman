@@ -255,8 +255,8 @@ public class Game {
             soundManager.playSound(SoundManager.SoundType.POWER_PELLET);
             if (settings.isParticleEffectsEnabled()) {
                 effectManager.createPowerPelletEffect(
-                        pacman.getX() * 20,
-                        pacman.getY() * 20 + 40);
+                        (float) (pacman.getX() * 20),
+                        (float) (pacman.getY() * 20 + 40));
             }
             statistics.recordPelletEaten(true);
         }
@@ -417,14 +417,14 @@ public class Game {
                     // エフェクトと効果音
                     soundManager.playSound(SoundManager.SoundType.GHOST_EAT);
                     effectManager.addScorePopup(
-                            ghost.getX() * 20,
-                            ghost.getY() * 20 + 40,
+                            (float) (ghost.getX() * 20),
+                            (float) (ghost.getY() * 20 + 40),
                             ghostScore);
 
                     if (settings.isParticleEffectsEnabled()) {
                         effectManager.createGhostEatenEffect(
-                                ghost.getX() * 20,
-                                ghost.getY() * 20 + 40);
+                                (float) (ghost.getX() * 20),
+                                (float) (ghost.getY() * 20 + 40));
                     }
 
                     statistics.recordGhostEaten();
