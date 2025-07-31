@@ -360,8 +360,7 @@ public class SoundGenerator {
             SoundEffect effect) {
         Clip clip = generateSoundClip(effect);
         if (clip != null) {
-            // SoundManagerのsoundClipsマップに直接アクセスする方法が必要
-            // 実際の実装では、SoundManagerにsetClipメソッドを追加する必要がある
+            soundManager.setClip(soundType, clip);
             System.out.println("Generated sound for: " + soundType);
         }
     }
