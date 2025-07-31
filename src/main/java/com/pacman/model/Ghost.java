@@ -101,11 +101,6 @@ public abstract class Ghost {
                 break;
         }
 
-        // 方向変更中でない場合のみ位置補正を実行
-        if (!isChangingDirection) {
-            performGentleAlignment();
-        }
-
         // 方向変更タイマーの更新
         if (directionChangeTimer > 0) {
             directionChangeTimer--;
@@ -293,12 +288,14 @@ public abstract class Ghost {
         updateTargetTile(maze, pacman);
 
         // 交差点での方向決定（改善された判定）
-        if (isAtSmoothIntersection(maze) || needsDirectionChange) {
+        if (isAtGridCenter() || needsDirectionChange) {
             Direction newDirection = chooseDirection(maze);
             if (newDirection != Direction.NONE && newDirection != currentDirection) {
+                // グリッドの中心で方向転換を実行
+                x = Math.round(x);
+                y = Math.round(y);
                 currentDirection = newDirection;
                 needsDirectionChange = false;
-                executeDirectionChange();
             }
         }
 
@@ -336,6 +333,15 @@ public abstract class Ghost {
      * 追跡モードの目標位置
      */
     protected abstract Point getChaseTarget(Pacman pacman);
+
+    /**
+     * ゴーストがグリッドの中心にいるかを判定する
+     */
+    private boolean isAtGridCenter() {
+        // 座標が整数（グリッドの中心）に十分近いかをチェック
+        return Math.abs(x - Math.round(x)) < 0.01 &&
+                Math.abs(y - Math.round(y)) < 0.01;
+    }
 
     /**
      * 滑らかな交差点判定
@@ -432,6 +438,14 @@ public abstract class Ghost {
         if (canMoveTo(maze, nextX, nextY)) {
             x = nextX;
             y = nextY;
+
+            // パックマンと同様の位置補正
+            if (currentDirection == Direction.LEFT || currentDirection == Direction.RIGHT) {
+                y = Math.round(y);
+            } else if (currentDirection == Direction.UP || currentDirection == Direction.DOWN) {
+                x = Math.round(x);
+            }
+
         } else {
             needsDirectionChange = true;
         }
