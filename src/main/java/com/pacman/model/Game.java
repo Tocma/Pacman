@@ -1,16 +1,19 @@
 package com.pacman.model;
 
-import com.pacman.model.*;
-import com.pacman.sound.SoundManager;
-import com.pacman.effects.EffectManager;
-import com.pacman.game.Direction;
-import com.pacman.game.GameState;
-import com.pacman.util.*;
-import javax.swing.Timer;
 import java.awt.Point;
 import java.awt.event.ActionEvent;
 import java.util.ArrayList;
 import java.util.List;
+
+import javax.swing.Timer;
+
+import com.pacman.effects.EffectManager;
+import com.pacman.game.Direction;
+import com.pacman.game.GameState;
+import com.pacman.sound.SoundManager;
+import com.pacman.util.GameSettings;
+import com.pacman.util.GameStatistics;
+import com.pacman.util.HighScoreManager;
 
 /**
  * ゲーム全体のロジックを管理するクラス
@@ -534,16 +537,32 @@ public class Game {
         Point pacmanStart = maze.getPacmanStartPosition();
         pacman.respawn(pacmanStart.x, pacmanStart.y);
 
-        // ゴーストのリセット
+        // ゴーストのリセット（修正版）
         List<Point> ghostPositions = maze.getGhostStartPositions();
         for (int i = 0; i < ghosts.size(); i++) {
             Ghost ghost = ghosts.get(i);
-            ghost.x = ghostPositions.get(i).x;
-            ghost.y = ghostPositions.get(i).y;
-            ghost.state = (i == 0) ? Ghost.GhostState.SCATTER : Ghost.GhostState.IN_HOUSE;
-            ghost.currentDirection = Direction.UP;
+            Point pos = ghostPositions.get(i);
+
+            // 基本位置の設定
+            ghost.x = pos.x;
+            ghost.y = pos.y;
+
+            // ゴーストごとの初期設定
+            if (i == 0) { // Blinky
+                // Blinkyは最初から外にいて、適切な通路に配置
+                ghost.x = 14;
+                ghost.y = 11; // 安全な通路位置
+                ghost.state = Ghost.GhostState.SCATTER;
+                ghost.currentDirection = Direction.LEFT;
+            } else { // Pinky, Inky, Clyde
+                // 他のゴーストはゴーストハウス内
+                ghost.state = Ghost.GhostState.IN_HOUSE;
+                ghost.currentDirection = Direction.UP;
+            }
+
             ghost.stateTimer = 0;
             ghost.dotCounter = 0;
+            ghost.speed = Ghost.NORMAL_SPEED * settings.getDifficulty().getSpeedMultiplier();
         }
 
         // フルーツのリセット

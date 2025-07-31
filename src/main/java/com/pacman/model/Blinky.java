@@ -3,6 +3,8 @@ package com.pacman.model;
 import java.awt.Color;
 import java.awt.Point;
 
+import com.pacman.game.Direction;
+
 /**
  * Blinky（赤ゴースト）- "Shadow"
  * 最もシンプルなAIで、常にパックマンを直接追跡する
@@ -15,9 +17,19 @@ public class Blinky extends Ghost {
 
     public Blinky(int startX, int startY) {
         super("Blinky", Color.RED, startX, startY);
-        // Blinkyは最初からゴーストハウスの外にいる
+        // Blinkyは最初からゴーストハウスの外にいる（修正：適切な位置に配置）
         this.state = GhostState.SCATTER;
-        this.y = startY - 3; // ゴーストハウスの真上に配置
+        this.currentDirection = Direction.LEFT; // 初期方向を左に設定
+
+        // 安全な初期位置に配置（ゴーストハウスの真上の通路）
+        if (startY == 14) {
+            // 既に適切な位置にいる場合はそのまま
+            this.y = startY;
+        } else {
+            // ゴーストハウス入口の上に配置
+            this.y = 11; // 迷路の通路部分
+        }
+        this.x = 14; // 中央の通路
     }
 
     /**

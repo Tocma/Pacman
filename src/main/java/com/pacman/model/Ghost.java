@@ -1,11 +1,12 @@
 package com.pacman.model;
 
-import com.pacman.game.Direction;
 import java.awt.Color;
 import java.awt.Point;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Random;
+
+import com.pacman.game.Direction;
 
 /**
  * ゴーストの基底クラス
@@ -40,7 +41,7 @@ public abstract class Ghost {
 
     // 外観
     protected Color normalColor;
-    protected String n;
+    protected String name;
 
     // 定数
     protected static final double NORMAL_SPEED = 0.1;
@@ -51,11 +52,16 @@ public abstract class Ghost {
     // ランダム要素用
     protected Random random = new Random();
 
+    // 移動制御用
+    private boolean needsDirectionChange = false;
+    private int stuckCounter = 0;
+    private static final int MAX_STUCK_FRAMES = 60;
+
     /**
      * コンストラクタ
      */
-    public Ghost(String n, Color color, int startX, int startY) {
-        this.n = n;
+    public Ghost(String name, Color color, int startX, int startY) {
+        this.name = name;
         this.normalColor = color;
         this.x = startX;
         this.y = startY;
@@ -74,6 +80,9 @@ public abstract class Ghost {
     public void update(Maze maze, Pacman pacman, List<Ghost> otherGhosts) {
         // 状態タイマーの更新
         updateTimers();
+
+        // 動けない状態のチェック
+        checkIfStuck(maze);
 
         // 状態に応じた処理
         switch (state) {
@@ -111,13 +120,71 @@ public abstract class Ghost {
             // 簡略化されたモード切り替えパターン
             int cycle = stateTimer % 2000;
             if (cycle < 420) { // 7秒間 SCATTER
-                state = GhostState.SCATTER;
+                if (state != GhostState.SCATTER) {
+                    state = GhostState.SCATTER;
+                    needsDirectionChange = true;
+                }
             } else if (cycle < 1620) { // 20秒間 CHASE
-                state = GhostState.CHASE;
+                if (state != GhostState.CHASE) {
+                    state = GhostState.CHASE;
+                    needsDirectionChange = true;
+                }
             } else { // 残り SCATTER
-                state = GhostState.SCATTER;
+                if (state != GhostState.SCATTER) {
+                    state = GhostState.SCATTER;
+                    needsDirectionChange = true;
+                }
             }
         }
+    }
+
+    /**
+     * 動けない状態のチェックと修正
+     */
+    private void checkIfStuck(Maze maze) {
+        // 現在位置から移動可能かチェック
+        double nextX = x + currentDirection.getDx() * speed;
+        double nextY = y + currentDirection.getDy() * speed;
+
+        if (!canMoveTo(maze, nextX, nextY)) {
+            stuckCounter++;
+            if (stuckCounter > MAX_STUCK_FRAMES) {
+                // 強制的に新しい方向を選択
+                forceDirectionChange(maze);
+                stuckCounter = 0;
+            }
+        } else {
+            stuckCounter = 0;
+        }
+    }
+
+    /**
+     * 強制的な方向変更
+     */
+    private void forceDirectionChange(Maze maze) {
+        List<Direction> validDirections = getValidDirections(maze);
+        if (!validDirections.isEmpty()) {
+            currentDirection = validDirections.get(random.nextInt(validDirections.size()));
+            needsDirectionChange = false;
+        }
+    }
+
+    /**
+     * 移動可能な方向のリストを取得
+     */
+    private List<Direction> getValidDirections(Maze maze) {
+        List<Direction> validDirections = new ArrayList<>();
+        int gridX = (int) Math.round(x);
+        int gridY = (int) Math.round(y);
+
+        for (Direction dir : Direction.values()) {
+            if (dir != Direction.NONE) {
+                if (maze.isGhostWalkable(gridX + dir.getDx(), gridY + dir.getDy())) {
+                    validDirections.add(dir);
+                }
+            }
+        }
+        return validDirections;
     }
 
     /**
@@ -130,6 +197,7 @@ public abstract class Ghost {
         // 出るタイミングをチェック
         if (shouldExitHouse()) {
             state = GhostState.EXITING_HOUSE;
+            currentDirection = Direction.UP;
         }
     }
 
@@ -147,13 +215,13 @@ public abstract class Ghost {
     private void updateExitingHouse(Maze maze) {
         // ゴーストハウスの出口（中央上部）へ移動
         double targetX = 14;
-        double targetY = 14;
+        double targetY = 11; // より安全な位置に修正
 
         double dx = targetX - x;
         double dy = targetY - y;
         double distance = Math.sqrt(dx * dx + dy * dy);
 
-        if (distance < 0.1) {
+        if (distance < 0.5) {
             // 出口に到達
             x = targetX;
             y = targetY;
@@ -173,11 +241,12 @@ public abstract class Ghost {
         // 目標タイルの設定
         updateTargetTile(maze, pacman);
 
-        // 交差点での方向決定
-        if (isAtIntersection(maze)) {
+        // 交差点での方向決定（条件を緩和）
+        if (isAtIntersection(maze) || needsDirectionChange) {
             Direction newDirection = chooseDirection(maze);
             if (newDirection != Direction.NONE) {
                 currentDirection = newDirection;
+                needsDirectionChange = false;
             }
         }
 
@@ -221,11 +290,11 @@ public abstract class Ghost {
     protected abstract Point getChaseTarget(Pacman pacman);
 
     /**
-     * 交差点かどうかの判定
+     * 交差点かどうかの判定（条件を緩和）
      */
     private boolean isAtIntersection(Maze maze) {
-        // グリッドの中心にいる場合のみ判定
-        if (Math.abs(x - Math.round(x)) < 0.05 && Math.abs(y - Math.round(y)) < 0.05) {
+        // グリッドの中心に近い場合に判定（条件を緩和）
+        if (Math.abs(x - Math.round(x)) < 0.2 && Math.abs(y - Math.round(y)) < 0.2) {
             int gridX = (int) Math.round(x);
             int gridY = (int) Math.round(y);
 
@@ -252,17 +321,24 @@ public abstract class Ghost {
 
         List<Direction> possibleDirections = new ArrayList<>();
 
-        // 可能な方向をリストアップ（後退は禁止）
+        // 可能な方向をリストアップ（後退は禁止、ただし行き詰まりの場合は例外）
         for (Direction dir : Direction.values()) {
-            if (dir != Direction.NONE && dir != currentDirection.opposite()) {
+            if (dir != Direction.NONE) {
                 if (maze.isGhostWalkable(gridX + dir.getDx(), gridY + dir.getDy())) {
-                    possibleDirections.add(dir);
+                    if (dir != currentDirection.opposite() || possibleDirections.isEmpty()) {
+                        possibleDirections.add(dir);
+                    }
                 }
             }
         }
 
         if (possibleDirections.isEmpty()) {
             return currentDirection.opposite(); // 行き止まりの場合は反転
+        }
+
+        // 後退方向を除去（他に選択肢がある場合）
+        if (possibleDirections.size() > 1) {
+            possibleDirections.remove(currentDirection.opposite());
         }
 
         // 怯えモードの場合はランダム
@@ -293,6 +369,15 @@ public abstract class Ghost {
     }
 
     /**
+     * 指定位置に移動可能かチェック
+     */
+    private boolean canMoveTo(Maze maze, double nextX, double nextY) {
+        int gridX = (int) Math.round(nextX);
+        int gridY = (int) Math.round(nextY);
+        return maze.isGhostWalkable(gridX, gridY);
+    }
+
+    /**
      * 実際の移動処理
      */
     private void move(Maze maze) {
@@ -300,12 +385,12 @@ public abstract class Ghost {
         double nextY = y + currentDirection.getDy() * speed;
 
         // 移動可能かチェック
-        int gridX = (int) Math.round(nextX);
-        int gridY = (int) Math.round(nextY);
-
-        if (maze.isGhostWalkable(gridX, gridY)) {
+        if (canMoveTo(maze, nextX, nextY)) {
             x = nextX;
             y = nextY;
+        } else {
+            // 移動できない場合は強制的に方向を変更
+            needsDirectionChange = true;
         }
     }
 
@@ -332,6 +417,7 @@ public abstract class Ghost {
             speed = FRIGHTENED_SPEED;
             // 方向反転
             currentDirection = currentDirection.opposite();
+            needsDirectionChange = true;
         }
     }
 
@@ -375,7 +461,7 @@ public abstract class Ghost {
     }
 
     public String getName() {
-        return n;
+        return name;
     }
 
     /**
