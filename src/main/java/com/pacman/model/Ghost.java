@@ -9,8 +9,9 @@ import java.util.Random;
 import com.pacman.game.Direction;
 
 /**
- * ゴーストの基底クラス
+ * ゴーストの基底クラス（位置補正機能付き）
  * 全てのゴーストに共通する機能と状態を管理
+ * グリッド中央への位置調整機能を強化
  */
 public abstract class Ghost {
     // ゴーストの状態
@@ -44,10 +45,14 @@ public abstract class Ghost {
     protected String name;
 
     // 定数
-    protected static final double NORMAL_SPEED = 0.1;
-    protected static final double FRIGHTENED_SPEED = 0.05;
-    protected static final double EATEN_SPEED = 0.2;
+    protected static final double NORMAL_SPEED = 0.125; // より正確な分数に調整
+    protected static final double FRIGHTENED_SPEED = 0.0625;
+    protected static final double EATEN_SPEED = 0.25;
     protected static final int FRIGHTENED_DURATION = 400; // フレーム数
+
+    // 位置補正用定数
+    private static final double POSITION_TOLERANCE = 0.1; // 位置補正の許容誤差
+    private static final double GRID_CENTER_THRESHOLD = 0.15; // グリッド中央判定の閾値
 
     // ランダム要素用
     protected Random random = new Random();
@@ -98,6 +103,39 @@ public abstract class Ghost {
             case EATEN:
                 updateMovement(maze, pacman);
                 break;
+        }
+
+        // 位置の正規化（重要な追加機能）
+        normalizePosition();
+    }
+
+    /**
+     * 位置をグリッドに正規化する
+     * ゴーストが道の中央を移動するように調整
+     */
+    private void normalizePosition() {
+        // 水平移動時は垂直位置を中央に調整
+        if (currentDirection == Direction.LEFT || currentDirection == Direction.RIGHT) {
+            double targetY = Math.round(y);
+            if (Math.abs(y - targetY) < POSITION_TOLERANCE) {
+                y = targetY;
+            } else {
+                // 徐々に中央に戻す
+                double diff = targetY - y;
+                y += diff * 0.1; // 緩やかな補正
+            }
+        }
+
+        // 垂直移動時は水平位置を中央に調整
+        if (currentDirection == Direction.UP || currentDirection == Direction.DOWN) {
+            double targetX = Math.round(x);
+            if (Math.abs(x - targetX) < POSITION_TOLERANCE) {
+                x = targetX;
+            } else {
+                // 徐々に中央に戻す
+                double diff = targetX - x;
+                x += diff * 0.1; // 緩やかな補正
+            }
         }
     }
 
@@ -166,7 +204,16 @@ public abstract class Ghost {
         if (!validDirections.isEmpty()) {
             currentDirection = validDirections.get(random.nextInt(validDirections.size()));
             needsDirectionChange = false;
+            snapToGrid(); // 方向変更時に位置をグリッドに合わせる
         }
+    }
+
+    /**
+     * 位置をグリッドにスナップする
+     */
+    private void snapToGrid() {
+        x = Math.round(x);
+        y = Math.round(y);
     }
 
     /**
@@ -198,6 +245,7 @@ public abstract class Ghost {
         if (shouldExitHouse()) {
             state = GhostState.EXITING_HOUSE;
             currentDirection = Direction.UP;
+            snapToGrid(); // 出る時に位置を正規化
         }
     }
 
@@ -215,7 +263,7 @@ public abstract class Ghost {
     private void updateExitingHouse(Maze maze) {
         // ゴーストハウスの出口（中央上部）へ移動
         double targetX = 14;
-        double targetY = 11; // より安全な位置に修正
+        double targetY = 11; // より安全な位置
 
         double dx = targetX - x;
         double dy = targetY - y;
@@ -227,6 +275,7 @@ public abstract class Ghost {
             y = targetY;
             state = GhostState.SCATTER;
             currentDirection = Direction.LEFT;
+            snapToGrid(); // 出口到達時に位置を正規化
         } else {
             // 出口に向かって移動
             x += (dx / distance) * speed;
@@ -241,12 +290,13 @@ public abstract class Ghost {
         // 目標タイルの設定
         updateTargetTile(maze, pacman);
 
-        // 交差点での方向決定（条件を緩和）
+        // 交差点での方向決定（グリッド中央判定を改善）
         if (isAtIntersection(maze) || needsDirectionChange) {
             Direction newDirection = chooseDirection(maze);
-            if (newDirection != Direction.NONE) {
+            if (newDirection != Direction.NONE && newDirection != currentDirection) {
                 currentDirection = newDirection;
                 needsDirectionChange = false;
+                snapToGrid(); // 方向変更時に位置をグリッドに合わせる
             }
         }
 
@@ -290,11 +340,12 @@ public abstract class Ghost {
     protected abstract Point getChaseTarget(Pacman pacman);
 
     /**
-     * 交差点かどうかの判定（条件を緩和）
+     * 交差点かどうかの判定（グリッド中央判定を改善）
      */
     private boolean isAtIntersection(Maze maze) {
-        // グリッドの中心に近い場合に判定（条件を緩和）
-        if (Math.abs(x - Math.round(x)) < 0.2 && Math.abs(y - Math.round(y)) < 0.2) {
+        // グリッドの中央に近い場合に判定
+        if (Math.abs(x - Math.round(x)) < GRID_CENTER_THRESHOLD &&
+                Math.abs(y - Math.round(y)) < GRID_CENTER_THRESHOLD) {
             int gridX = (int) Math.round(x);
             int gridY = (int) Math.round(y);
 
@@ -378,7 +429,7 @@ public abstract class Ghost {
     }
 
     /**
-     * 実際の移動処理
+     * 実際の移動処理（位置補正機能付き）
      */
     private void move(Maze maze) {
         double nextX = x + currentDirection.getDx() * speed;
@@ -404,6 +455,8 @@ public abstract class Ghost {
             } else if (x >= Maze.WIDTH) {
                 x = 0;
             }
+            // トンネル通過後も位置を正規化
+            snapToGrid();
         }
     }
 
@@ -418,6 +471,7 @@ public abstract class Ghost {
             // 方向反転
             currentDirection = currentDirection.opposite();
             needsDirectionChange = true;
+            snapToGrid(); // 状態変更時に位置を正規化
         }
     }
 
@@ -427,6 +481,7 @@ public abstract class Ghost {
     public void setEaten() {
         state = GhostState.EATEN;
         speed = EATEN_SPEED;
+        snapToGrid(); // 食べられた時に位置を正規化
     }
 
     /**
