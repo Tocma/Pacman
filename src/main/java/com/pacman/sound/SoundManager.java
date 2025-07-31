@@ -167,28 +167,27 @@ public class SoundManager {
      * 仮想サウンドの生成（実際のファイルがない場合のデモ用）
      */
     public void generateVirtualSounds() {
-        // 実際のサウンドファイルがない場合でも、
-        // ゲームが動作するように仮想的なサウンドを生成
-        // 本番環境では実際のWAVファイルを使用
+        // SoundGeneratorを使用して実際の効果音を生成
+        SoundGenerator.registerGeneratedSounds(this);
+    }
 
-        for (SoundType soundType : SoundType.values()) {
-            try {
-                // 短い無音のクリップを作成（実装のプレースホルダー）
-                AudioFormat format = new AudioFormat(44100, 16, 2, true, false);
-                byte[] data = new byte[format.getFrameSize() * 1000]; // 約0.02秒の無音
-                AudioInputStream stream = new AudioInputStream(
-                        new ByteArrayInputStream(data),
-                        format,
-                        data.length / format.getFrameSize());
-
-                Clip clip = AudioSystem.getClip();
-                clip.open(stream);
-                soundClips.put(soundType, clip);
-
-            } catch (Exception e) {
-                System.err.println("仮想サウンド生成エラー: " + e.getMessage());
+    /**
+     * サウンドクリップを直接設定
+     * 
+     * @param soundType サウンドタイプ
+     * @param clip      設定するクリップ
+     */
+    public void setClip(SoundType soundType, Clip clip) {
+        // 既存のクリップがある場合は閉じる
+        if (soundClips.containsKey(soundType)) {
+            Clip oldClip = soundClips.get(soundType);
+            if (oldClip.isRunning()) {
+                oldClip.stop();
             }
+            oldClip.close();
         }
+
+        soundClips.put(soundType, clip);
     }
 
     // ゲッター・セッター
