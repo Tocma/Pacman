@@ -23,18 +23,18 @@ public abstract class Ghost {
     }
 
     // 位置情報
-    protected double x;
-    protected double y;
+    public double x;
+    public double y;
     protected Point homePosition; // ゴーストハウス内の初期位置
 
     // 移動関連
-    protected Direction currentDirection;
-    protected double speed;
+    public Direction currentDirection;
+    public double speed;
     protected Point targetTile; // 目標とするタイル座標
 
     // 状態管理
-    protected GhostState state;
-    protected int stateTimer;
+    public GhostState state;
+    public int stateTimer;
     protected int frightenedTimer;
     protected int dotCounter; // ゴーストハウスから出るタイミング制御用
 
@@ -206,9 +206,6 @@ public abstract class Ghost {
             case EATEN:
                 // ゴーストハウスの入口を目指す
                 targetTile = new Point(14, 14);
-                break;
-            default:
-                targetTile = null; // その他の状態では目標なし
                 break;
         }
     }
