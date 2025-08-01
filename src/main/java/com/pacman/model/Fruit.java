@@ -1,6 +1,8 @@
 package com.pacman.model;
 
-import java.awt.*;
+import java.awt.BasicStroke;
+import java.awt.Color;
+import java.awt.Graphics2D;
 
 /**
  * フルーツボーナスアイテムを管理するクラス
@@ -49,7 +51,7 @@ public class Fruit {
     private static final int DISPLAY_DURATION = 600; // 10秒間表示
 
     // アニメーション用
-    private float animationOffset;
+    private float animationTimer; // animationOffsetからanimationTimerに変更
     private float animationSpeed = 0.1f;
 
     /**
@@ -58,7 +60,7 @@ public class Fruit {
     public Fruit() {
         this.visible = false;
         this.displayTimer = 0;
-        this.animationOffset = 0;
+        this.animationTimer = 0; // animationOffsetからanimationTimerに変更
     }
 
     /**
@@ -122,7 +124,7 @@ public class Fruit {
         }
 
         // アニメーション更新（上下に揺れる）
-        animationOffset += animationSpeed;
+        animationTimer += animationSpeed;
     }
 
     /**
@@ -131,6 +133,9 @@ public class Fruit {
     public void render(Graphics2D g, int tileSize) {
         if (!visible)
             return;
+
+        // animationOffsetをsin波で計算
+        float animationOffset = (float) Math.sin(animationTimer) * 3;
 
         int screenX = x * tileSize + tileSize / 2;
         int screenY = (int) (y * tileSize + tileSize / 2 + animationOffset);
@@ -243,9 +248,11 @@ public class Fruit {
     /**
      * フルーツとの衝突判定
      */
-    public boolean checkCollision(int pacmanX, int pacmanY) {
+    public boolean checkCollision(double pacmanX, double pacmanY) {
         if (!visible)
             return false;
+
+        // ペレットと同様に、整数座標が完全に一致するかをチェック
         return pacmanX == x && pacmanY == y;
     }
 

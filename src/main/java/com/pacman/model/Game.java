@@ -318,7 +318,7 @@ public class Game {
                 pelletsEatenThisLevel == FRUIT_SPAWN_PELLET_COUNT * 2) &&
                 !fruit.isVisible()) {
             // 迷路の中央付近に出現
-            fruit.spawn(level, 14, 20);
+            fruit.spawn(level, 14, 19);
         }
     }
 
@@ -328,6 +328,7 @@ public class Game {
     private void updateFruit() {
         fruit.update();
 
+        // パワーペレットと同様に、整数に丸めた座標で判定するように修正
         if (fruit.isVisible() && fruit.checkCollision(
                 (int) Math.round(pacman.getX()),
                 (int) Math.round(pacman.getY()))) {
